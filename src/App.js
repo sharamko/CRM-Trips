@@ -1,57 +1,51 @@
-import React from 'react';
-import logo from './logo.svg';
-import { Counter } from './features/counter/Counter';
-import './App.css';
+import React, { useEffect } from 'react';
+import { BrowserRouter } from 'react-router-dom';
+import AppRouter from './components/AppRouter';
+import NavBar from './components/NavBar';
+import { setUser, setUserInfo } from './store/slice';
+import { useDispatch } from 'react-redux';
+import { auth, db } from './firebase';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import Loader from './components/Loader';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 function App() {
+  const dispatch = useDispatch();
+  useEffect(() => {
+    auth.onAuthStateChanged(async (user) => {
+      if (user != null) {
+        dispatch(setUser(auth.currentUser));
+        const userInfo = {
+          name: auth.currentUser.displayName,
+          email: auth.currentUser.email,
+          prof: null,
+          admin:
+            auth.currentUser.email === 'sharamko25@gmail.com' ? true : false,
+          userId: auth.currentUser.uid,
+        };
+
+        const beUser = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        if (!beUser.exists()) {
+          await setDoc(doc(db, 'users', auth.currentUser.uid), userInfo);
+          dispatch(setUserInfo(userInfo));
+        } else {
+          dispatch(setUserInfo(beUser.data()));
+        }
+      }
+    });
+  }, [auth]);
+
+  const [_, loading] = useAuthState(auth);
+  {
+    if (loading) {
+      return <Loader />;
+    }
+  }
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <Counter />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <span>
-          <span>Learn </span>
-          <a
-            className="App-link"
-            href="https://reactjs.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            React
-          </a>
-          <span>, </span>
-          <a
-            className="App-link"
-            href="https://redux.js.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Redux
-          </a>
-          <span>, </span>
-          <a
-            className="App-link"
-            href="https://redux-toolkit.js.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Redux Toolkit
-          </a>
-          ,<span> and </span>
-          <a
-            className="App-link"
-            href="https://react-redux.js.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            React Redux
-          </a>
-        </span>
-      </header>
-    </div>
+    <BrowserRouter>
+      <NavBar />
+      <AppRouter />
+    </BrowserRouter>
   );
 }
 
